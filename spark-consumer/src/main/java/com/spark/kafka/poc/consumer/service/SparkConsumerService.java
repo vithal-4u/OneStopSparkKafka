@@ -56,22 +56,29 @@ public class SparkConsumerService {
                 .map(cnt -> "Popular hash tags in last 60 seconds (" + cnt + " total tweets):")
                 .print();
 
-        //
-        lines
-                .flatMap(text -> HashTagsUtils.hashTagsFromTweet(text))
-                .mapToPair(hashTag -> new Tuple2<>(hashTag, 1))
-                .reduceByKey((a, b) -> Integer.sum(a, b))
-
-                .mapToPair(stringIntegerTuple2 -> stringIntegerTuple2.swap())
-                .foreachRDD(rrdd -> {
-                    System.out.println("---------------------------------------------------------------");
-                    List<Tuple2<Integer, String>> sorted;
-                    JavaPairRDD<Integer, String> counts = rrdd.sortByKey(false);
-                    sorted = counts.collect();
-                    sorted.forEach( record -> {
-                        System.out.println(String.format(" %s (%d)", record._2, record._1));
-                    });
-                });
+		List<String> allRecord = new ArrayList<String>();
+        lines.foreachRDD(new VoidFunction<JavaRDD<String>>() {
+			
+			@Override
+			public void call(JavaRDD<String> rdd) throws Exception {
+				System.out.println("Inside forEachRDD");
+				List<String> listStr = rdd.collect();
+				listStr.forEach(new Consumer<String>() {
+					@Override
+					public void accept(String data) {
+						System.out.println("Output Data ----"+data);
+						allRecord.add(data);
+					}
+				});
+				FileWriter writer = new FileWriter("D:\\Study_Document\\temp\\output\\Master_dataset.csv");
+				for(String s : allRecord) {
+					writer.write(s);
+					writer.write("\n");
+				}
+				System.out.println("Master dataset has been created : ");
+				writer.close();
+			}
+		});
 
         // Start the computation
         jssc.start();
